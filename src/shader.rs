@@ -5,10 +5,14 @@ use std::io::Read;
 use std::ptr;
 use std::str;
 
-use gl::types::*;
+use gl::types::{*, self};
 
 pub struct Shader {
     pub id: u32,
+}
+
+fn str_to_cstring(str: &str) -> CString {
+    CString::new(str).unwrap()
 }
 
 #[allow(dead_code)]
@@ -62,21 +66,25 @@ impl Shader {
         gl::UseProgram(self.id)
     }
 
-    pub unsafe fn set_bool(&self, name: &CStr, value: bool) {
-        gl::Uniform1i(gl::GetUniformLocation(self.id, name.as_ptr()), value as i32);
+    unsafe fn get_uniform_location(&self, name: &str) -> types::GLint {
+        gl::GetUniformLocation(self.id, str_to_cstring(name).as_ptr())
     }
 
-    pub unsafe fn set_int(&self, name: &CStr, value: i32) {
-        gl::Uniform1i(gl::GetUniformLocation(self.id, name.as_ptr()), value);
+    pub unsafe fn set_bool(&self, name: &str, value: bool) {
+        gl::Uniform1i(self.get_uniform_location(name), value as i32);
     }
 
-    pub unsafe fn set_float(&self, name: &CStr, value: f32) {
-        gl::Uniform1f(gl::GetUniformLocation(self.id, name.as_ptr()), value);
+    pub unsafe fn set_int(&self, name: &str, value: i32) {
+        gl::Uniform1i(self.get_uniform_location(name), value);
     }
 
-    pub unsafe fn set_vec2(&self, name: &CStr, value: &(f32, f32)) {
+    pub unsafe fn set_float(&self, name: &str, value: f32) {
+        gl::Uniform1f(self.get_uniform_location(name), value);
+    }
+
+    pub unsafe fn set_vec2(&self, name: &str, value: &(f32, f32)) {
         gl::Uniform2f(
-            gl::GetUniformLocation(self.id, name.as_ptr()),
+            self.get_uniform_location(name),
             value.0,
             value.1,
         );

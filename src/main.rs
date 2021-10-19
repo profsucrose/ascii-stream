@@ -18,6 +18,14 @@ use shader::Shader;
 const SCR_WIDTH: u32 = 800;
 const SCR_HEIGHT: u32 = 450;
 
+struct State {
+    zoom: f32,
+    crop_x_left: f32,
+    crop_x_right: f32,
+    crop_y_top: f32,
+    crop_y_bottom: f32,
+}
+
 pub fn main() {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
     glfw.window_hint(glfw::WindowHint::ContextVersion(3, 3));
@@ -44,6 +52,15 @@ pub fn main() {
 
     let display = scrap::Display::primary().unwrap();
     let mut capturer = scrap::Capturer::new(display).unwrap();
+
+    // state
+    let mut state = State {
+        zoom: 2.0,
+        crop_x_left: 0.0,
+        crop_x_right: 0.0,
+        crop_y_top: 0.0,
+        crop_y_bottom: 0.0,
+    };
 
     let (shader, vbo, vao, ebo, texture) = unsafe {
         let shader = Shader::new("src/shaders/vertex.vs", "src/shaders/fragment.fs");
@@ -153,7 +170,7 @@ pub fn main() {
     let mut instant = std::time::Instant::now();
     while !window.should_close() {
         // events
-        process_events(&mut window, &events, &mut resolution);
+        process_events(&mut window, &events, &mut resolution, &mut state);
 
         unsafe {
             gl::ClearColor(0.2, 0.3, 0.3, 1.0);
@@ -188,8 +205,19 @@ pub fn main() {
             gl::BindTexture(gl::TEXTURE_2D, texture);
 
             // render container
+            println!("{}", state.zoom);
             shader.use_program();
-            shader.set_vec2(CString::new("resolution").unwrap().as_c_str(), &resolution);
+            shader.set_vec2("resolution", &resolution);
+
+            shader.set_float("zoom", state.zoom);
+            shader.set_float("cropXRight", state.crop_x_right);
+            shader.set_float("cropXLeft", state.crop_x_left);
+            shader.set_float("cropYBottom", state.crop_y_bottom);
+            shader.set_float("cropYTop", state.crop_y_top);
+
+            shader.set_float("screenWidth", width as f32);
+            shader.set_float("screenHeight", height as f32);
+
             gl::BindVertexArray(vao);
             gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, ptr::null());
         }
@@ -213,6 +241,7 @@ fn process_events(
     window: &mut glfw::Window,
     events: &Receiver<(f64, glfw::WindowEvent)>,
     resolution: &mut (f32, f32),
+    state: &mut State,
 ) {
     for (_, event) in glfw::flush_messages(events) {
         match event {
@@ -224,6 +253,24 @@ fn process_events(
             }
             glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
                 window.set_should_close(true)
+            }
+            glfw::WindowEvent::Key(Key::Up, _, Action::Press, _) => {
+                state.zoom += 0.1;
+            }
+            glfw::WindowEvent::Key(Key::Down, _, Action::Press, _) => {
+                state.zoom -= 0.1;
+            }
+            glfw::WindowEvent::Key(Key::D, _, Action::Press, _) => {
+                state.crop_x_left += 5.0;
+            }
+            glfw::WindowEvent::Key(Key::A, _, Action::Press, _) => {
+                state.crop_x_right += 5.0;
+            }
+            glfw::WindowEvent::Key(Key::W, _, Action::Press, _) => {
+                state.crop_y_bottom += 5.0;
+            }
+            glfw::WindowEvent::Key(Key::S, _, Action::Press, _) => {
+                state.crop_y_bottom -= 5.0;
             }
             _ => {}
         }
